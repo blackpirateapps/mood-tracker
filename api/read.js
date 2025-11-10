@@ -4,25 +4,15 @@
 import { authenticate } from "./_lib/auth.js";
 import { getTursoClient } from "./_lib/db.js";
 
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== "GET") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   // 1. Authenticate user
   const user = await authenticate(req);
   if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const { userId } = user;
@@ -64,15 +54,9 @@ export default async function handler(req) {
     }));
 
     // 4. Send the combined data
-    return new Response(JSON.stringify({ journalEntries, activities }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(200).json({ journalEntries, activities });
   } catch (error) {
     console.error("Read API Error:", error.message);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

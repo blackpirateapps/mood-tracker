@@ -6,31 +6,20 @@ import { getTursoClient } from "./_lib/db.js";
 import jwt from "jsonwebtoken";
 import { serialize } from "cookie";
 
-// Use Edge runtime for Request/Response API
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   // We only accept POST requests
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const JWT_SECRET = process.env.JWT_SECRET;
   if (!JWT_SECRET) {
     console.error("FATAL: JWT_SECRET is not set.");
-    return new Response(JSON.stringify({ error: "Server configuration error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(500).json({ error: "Server configuration error" });
   }
 
   try {
-    const { action, email, password } = await req.json();
+    const { action, email, password } = req.body;
     const db = getTursoClient();
 
     // --- LOGOUT ACTION ---
@@ -42,18 +31,13 @@ export default async function handler(req) {
         path: "/",
         sameSite: "strict",
       });
-      return new Response(JSON.stringify({ message: "Logged out" }), {
-        status: 200,
-        headers: { "Set-Cookie": cookie, "Content-Type": "application/json" },
-      });
+      res.setHeader("Set-Cookie", cookie);
+      return res.status(200).json({ message: "Logged out" });
     }
 
     // --- SIGNUP/SIGNIN ACTIONS (require email/password) ---
     if (!email || !password) {
-      return new Response(JSON.stringify({ error: "Email and password are required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
     // --- SIGNUP ACTION ---
@@ -64,10 +48,7 @@ export default async function handler(req) {
         args: [email.toLowerCase()],
       });
       if (existingUser.rows.length > 0) {
-        return new Response(JSON.stringify({ error: "User already exists" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return res.status(400).json({ error: "User already exists" });
       }
 
       // Hash password
@@ -81,7 +62,7 @@ export default async function handler(req) {
       });
 
       // User is created, now sign them in
-      return createSession(userId, JWT_SECRET);
+      return createSession(userId, JWT_SECRET, res);
     }
 
     // --- SIGNIN ACTION ---
@@ -92,44 +73,32 @@ export default async function handler(req) {
         args: [email.toLowerCase()],
       });
       if (result.rows.length === 0) {
-        return new Response(JSON.stringify({ error: "Invalid email or password" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
+        return res.status(401).json({ error: "Invalid email or password" });
       }
 
       const user = result.rows[0];
       // Check password
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {
-        return new Response(JSON.stringify({ error: "Invalid email or password" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
+        return res.status(401).json({ error: "Invalid email or password" });
       }
 
       // Valid: Create and send session cookie
-      return createSession(user.id, JWT_SECRET);
+      return createSession(user.id, JWT_SECRET, res);
     }
 
     // Default: Invalid action
-    return new Response(JSON.stringify({ error: "Invalid action" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(400).json({ error: "Invalid action" });
   } catch (error) {
     console.error("Auth API Error:", error.message);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
 /**
- * Creates a JWT and returns a Response with a Set-Cookie header.
+ * Creates a JWT and returns a response with a Set-Cookie header.
  */
-function createSession(userId, secret) {
+function createSession(userId, secret, res) {
   // 1. Create JWT
   const token = jwt.sign({ userId }, secret, {
     expiresIn: "7d",
@@ -145,11 +114,6 @@ function createSession(userId, secret) {
   });
 
   // 3. Send response
-  return new Response(JSON.stringify({ message: "Authentication successful" }), {
-    status: 200,
-    headers: {
-      "Set-Cookie": cookie,
-      "Content-Type": "application/json",
-    },
-  });
+  res.setHeader("Set-Cookie", cookie);
+  return res.status(200).json({ message: "Authentication successful" });
 }
