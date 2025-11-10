@@ -1,0 +1,13 @@
+{
+  "name": "mood-journal-vercel-turso",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mood journal backend for Vercel",
+  "dependencies": {
+    "@libsql/client": "latest",
+    "bcryptjs": "latest",
+    "cookie": "latest",
+    "dotenv": "latest",
+    "jsonwebtoken": "latest"
+  }
+}

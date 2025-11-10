@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Mood Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body class="dark:bg-black text-gray-200 antialiased">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="w-full max-w-md">
+            <div class="bg-gray-900 p-8 rounded-2xl shadow-lg card-bg">
+                <h1 id="form-title" class="text-3xl font-bold text-white text-center mb-6">Sign In</h1>
+                
+                <form id="auth-form">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                            <input type="email" id="email" name="email" required
+                                class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        </div>
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                            <input type="password" id="password" name="password" required
+                                class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        </div>
+                    </div>
+
+                    <p id="error-message" class="text-red-400 text-sm mt-4 text-center h-5"></p>
+
+                    <div class="mt-6">
+                        <button id="submit-btn" type="submit"
+                            class="w-full bg-blue-600 text-white p-3 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                            Sign In
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button id="toggle-btn" class="text-sm text-blue-400 hover:text-blue-300 font-medium">
+                        Don't have an account? Sign Up
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const formTitle = document.getElementById('form-title');
+            const authForm = document.getElementById('auth-form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const submitBtn = document.getElementById('submit-btn');
+            const toggleBtn = document.getElementById('toggle-btn');
+            const errorEl = document.getElementById('error-message');
+
+            let isLogin = true;
+
+            toggleBtn.addEventListener('click', () => {
+                isLogin = !isLogin;
+                if (isLogin) {
+                    formTitle.textContent = 'Sign In';
+                    submitBtn.textContent = 'Sign In';
+                    toggleBtn.textContent = "Don't have an account? Sign Up";
+                } else {
+                    formTitle.textContent = 'Sign Up';
+                    submitBtn.textContent = 'Sign Up';
+                    toggleBtn.textContent = 'Already have an account? Sign In';
+                }
+                errorEl.textContent = '';
+            });
+
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                errorEl.textContent = '';
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Loading...';
+
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                const action = isLogin ? 'signin' : 'signup';
+
+                try {
+                    const response = await fetch('/api/auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ action, email, password }),
+                    });
+
+                    if (response.ok) {
+                        // Success! Redirect to the main app.
+                        window.location.href = '/';
+                    } else {
+                        const { error } = await response.json();
+                        errorEl.textContent = error || 'An unknown error occurred.';
+                    }
+                } catch (err) {
+                    errorEl.textContent = 'Failed to connect to server.';
+                }
+
+                submitBtn.disabled = false;
+                submitBtn.textContent = isLogin ? 'Sign In' : 'Sign Up';
+            });
+        });
+    </script>
+</body>
+</html>
