@@ -22,7 +22,9 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { action, data } = req.body;
+    const body = req.body;
+    const action = body.action;
+
     if (!action) {
       return res.status(400).json({ error: "Action required" });
     }
@@ -31,21 +33,16 @@ export default async function handler(req, res) {
 
     // === SAVE JOURNAL ENTRY ===
     if (action === "save_entry") {
-      const { id, date, dateKey, mood, activities } = data;
+      const { date, dateKey, mood, activities, existingEntryId } = body;
 
       if (!date || !dateKey || !mood) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const entryId = id || crypto.randomUUID();
+      const entryId = existingEntryId || crypto.randomUUID();
 
       // Check if entry exists
-      const existing = await db.execute({
-        sql: "SELECT id FROM journal_entries WHERE id = ? AND user_id = ?",
-        args: [entryId, userId],
-      });
-
-      if (existing.rows.length > 0) {
+      if (existingEntryId) {
         // Update existing entry
         await db.execute({
           sql: "UPDATE journal_entries SET mood = ? WHERE id = ? AND user_id = ?",
@@ -74,45 +71,45 @@ export default async function handler(req, res) {
         await db.batch(inserts, "write");
       }
 
-      return res.status(200).json({ success: true, id: entryId });
+      return res.status(200).json({ message: "Entry saved", entryId });
     }
 
     // === DELETE JOURNAL ENTRY ===
     if (action === "delete_entry") {
-      const { id } = data;
-      if (!id) {
+      const { entryId } = body;
+      if (!entryId) {
         return res.status(400).json({ error: "Entry ID required" });
       }
 
       await db.execute({
         sql: "DELETE FROM journal_entries WHERE id = ? AND user_id = ?",
-        args: [id, userId],
+        args: [entryId, userId],
       });
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ message: "Entry deleted" });
     }
 
     // === CREATE ACTIVITY ===
     if (action === "create_activity") {
-      const { name, icon, color } = data;
+      const { name, icon, color } = body;
 
       if (!name || !icon || !color) {
         return res.status(400).json({ error: "Name, icon, and color required" });
       }
 
-      const activityId = `activity_${crypto.randomUUID()}`;
+      const activityId = `activity_${Date.now()}`;
 
       await db.execute({
         sql: "INSERT INTO activities (id, user_id, name, icon, color) VALUES (?, ?, ?, ?, ?)",
         args: [activityId, userId, name, icon, color],
       });
 
-      return res.status(201).json({ success: true, id: activityId });
+      return res.status(201).json({ message: "Activity created", activityId });
     }
 
     // === UPDATE ACTIVITY ===
     if (action === "update_activity") {
-      const { id, name, icon, color } = data;
+      const { id, name, icon, color } = body;
 
       if (!id || !name || !icon || !color) {
         return res.status(400).json({ error: "ID, name, icon, and color required" });
@@ -123,12 +120,12 @@ export default async function handler(req, res) {
         args: [name, icon, color, id, userId],
       });
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ message: "Activity updated" });
     }
 
     // === DELETE ACTIVITY ===
     if (action === "delete_activity") {
-      const { id } = data;
+      const { id } = body;
       if (!id) {
         return res.status(400).json({ error: "Activity ID required" });
       }
@@ -138,12 +135,12 @@ export default async function handler(req, res) {
         args: [id, userId],
       });
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ message: "Activity deleted" });
     }
 
     return res.status(400).json({ error: "Invalid action" });
   } catch (error) {
     console.error("Write error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error", details: error.message });
   }
 }
