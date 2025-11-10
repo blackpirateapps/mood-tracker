@@ -1,6 +1,5 @@
 // This file centralizes the Turso database connection.
 import { createClient } from "@libsql/client";
-// import "dotenv/config"; // REMOVED - This is not needed on Vercel and breaks Edge functions.
 
 const tursoConfig = {
   url: process.env.TURSO_DATABASE_URL,
@@ -15,6 +14,7 @@ export function getTursoClient() {
   if (!tursoConfig.url) {
     throw new Error("TURSO_DATABASE_URL is not set.");
   }
+
   if (!tursoConfig.authToken) {
     throw new Error("TURSO_AUTH_TOKEN is not set.");
   }

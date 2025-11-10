@@ -5,7 +5,7 @@ import { authenticate } from "./_lib/auth.js";
 import { getTursoClient } from "./_lib/db.js";
 
 export const config = {
-  runtime: 'nodejs', // CORRECTED: Set to Node.js runtime
+  runtime: 'nodejs',
 };
 
 export default async function handler(req) {
@@ -24,30 +24,26 @@ export default async function handler(req) {
       headers: { "Content-Type": "application/json" },
     });
   }
+
   const { userId } = user;
   const db = getTursoClient();
 
   try {
-    // 2. Start a read transaction
-    // Note: libSQL edge client might not support multi-statement in one .execute()
-    // We'll use .batch() in "read" mode
-    const [entriesResult, activitiesResult, entryActivitiesResult] = await db.batch(
-      [
-        {
-          sql: "SELECT * FROM journal_entries WHERE user_id = ? ORDER BY dateKey DESC",
-          args: [userId],
-        },
-        {
-          sql: "SELECT * FROM activities WHERE user_id = ?",
-          args: [userId],
-        },
-        {
-          sql: "SELECT entry_id, activity_id FROM entry_activities WHERE user_id = ?",
-          args: [userId],
-        },
-      ],
-      "read" // Use "read" replica
-    );
+    // 2. Fetch all data using batch
+    const [entriesResult, activitiesResult, entryActivitiesResult] = await db.batch([
+      {
+        sql: "SELECT * FROM journal_entries WHERE user_id = ? ORDER BY dateKey DESC",
+        args: [userId],
+      },
+      {
+        sql: "SELECT * FROM activities WHERE user_id = ?",
+        args: [userId],
+      },
+      {
+        sql: "SELECT entry_id, activity_id FROM entry_activities WHERE user_id = ?",
+        args: [userId],
+      },
+    ]);
 
     // 3. Process and combine data
     const activities = activitiesResult.rows;
@@ -72,7 +68,6 @@ export default async function handler(req) {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("Read API Error:", error.message);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

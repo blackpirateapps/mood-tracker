@@ -8,7 +8,7 @@ import { serialize } from "cookie";
 
 // Vercel specific config to ensure this runs as a serverless function
 export const config = {
-  runtime: 'nodejs', // CORRECTED: Set to Node.js runtime
+  runtime: 'nodejs',
 };
 
 export default async function handler(req) {
@@ -20,7 +20,7 @@ export default async function handler(req) {
     });
   }
 
-  const JWT_SECRET = process.env.JWT_SECRET; // Use process.env directly
+  const JWT_SECRET = process.env.JWT_SECRET;
   if (!JWT_SECRET) {
     console.error("FATAL: JWT_SECRET is not set.");
     return new Response(JSON.stringify({ error: "Server configuration error" }), {
@@ -35,7 +35,6 @@ export default async function handler(req) {
 
     // --- LOGOUT ACTION ---
     if (action === "logout") {
-      // Create a cookie that expires in the past
       const cookie = serialize("auth_token", "", {
         httpOnly: true,
         secure: process.env.NODE_ENV !== "development",
@@ -81,7 +80,7 @@ export default async function handler(req) {
         args: [userId, email.toLowerCase(), passwordHash],
       });
 
-      // User is created, now sign them in (see SIGNIN logic)
+      // User is created, now sign them in
       return createSession(userId, JWT_SECRET);
     }
 
@@ -92,7 +91,6 @@ export default async function handler(req) {
         sql: "SELECT id, password_hash FROM users WHERE email = ?",
         args: [email.toLowerCase()],
       });
-
       if (result.rows.length === 0) {
         return new Response(JSON.stringify({ error: "Invalid email or password" }), {
           status: 401,
@@ -101,7 +99,6 @@ export default async function handler(req) {
       }
 
       const user = result.rows[0];
-
       // Check password
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {
@@ -120,7 +117,6 @@ export default async function handler(req) {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("Auth API Error:", error.message);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
@@ -141,10 +137,10 @@ function createSession(userId, secret) {
 
   // 2. Create cookie
   const cookie = serialize("auth_token", token, {
-    httpOnly: true, // Prevents client-side JS access
-    secure: process.env.NODE_ENV !== "development", // Use secure in prod
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== "development",
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: "/", // Available on all paths
+    path: "/",
     sameSite: "strict",
   });
 

@@ -5,7 +5,7 @@ import { authenticate } from "./_lib/auth.js";
 import { getTursoClient } from "./_lib/db.js";
 
 export const config = {
-  runtime: 'nodejs', // CORRECTED: Set to Node.js runtime
+  runtime: 'nodejs',
 };
 
 export default async function handler(req) {
@@ -24,6 +24,7 @@ export default async function handler(req) {
       headers: { "Content-Type": "application/json" },
     });
   }
+
   const { userId } = user;
   const db = getTursoClient();
 
@@ -35,7 +36,7 @@ export default async function handler(req) {
       case "save_entry": {
         const { date, dateKey, mood, activities, existingEntryId } = data;
         let entryId = existingEntryId;
-        
+
         // We need a transaction to do this safely
         const tx = await db.transaction("write");
         try {
@@ -45,6 +46,7 @@ export default async function handler(req) {
               sql: "UPDATE journal_entries SET mood = ? WHERE id = ? AND user_id = ?",
               args: [mood, entryId, userId],
             });
+
             // Clear old activities for this entry
             await tx.execute({
               sql: "DELETE FROM entry_activities WHERE entry_id = ? AND user_id = ?",
@@ -67,15 +69,17 @@ export default async function handler(req) {
             }));
             await tx.batch(stmts);
           }
-          
-          await tx.commit();
 
+          await tx.commit();
         } catch (txError) {
           await tx.rollback();
           throw txError;
         }
 
-        return new Response(JSON.stringify({ message: "Entry saved" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Entry saved" }), { 
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
       // --- CREATE A NEW ACTIVITY ---
@@ -86,7 +90,10 @@ export default async function handler(req) {
           sql: "INSERT INTO activities (id, user_id, name, icon, color) VALUES (?, ?, ?, ?, ?)",
           args: [newActivityId, userId, name, icon, color],
         });
-        return new Response(JSON.stringify({ message: "Activity created" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Activity created" }), { 
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
       // --- UPDATE AN EXISTING ACTIVITY ---
@@ -96,25 +103,31 @@ export default async function handler(req) {
           sql: "UPDATE activities SET name = ?, icon = ?, color = ? WHERE id = ? AND user_id = ?",
           args: [name, icon, color, id, userId],
         });
-        return new Response(JSON.stringify({ message: "Activity updated" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Activity updated" }), { 
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
       // --- DELETE AN ACTIVITY ---
       case "delete_activity": {
         const { id } = data;
-        // Note: The ON DELETE CASCADE in db-schema.sql
-        // will automatically remove this activity from all entries.
         await db.execute({
           sql: "DELETE FROM activities WHERE id = ? AND user_id = ?",
           args: [id, userId],
         });
-        return new Response(JSON.stringify({ message: "Activity deleted" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Activity deleted" }), { 
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
       default:
-        return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Invalid action" }), { 
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
     }
-
   } catch (error) {
     console.error("Write API Error:", error.message);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

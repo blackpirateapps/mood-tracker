@@ -11,7 +11,6 @@ const getEnv = (key) => process.env[key];
  */
 export async function authenticate(req) {
   const JWT_SECRET = getEnv("JWT_SECRET");
-
   if (!JWT_SECRET) {
     console.error("JWT_SECRET is not set.");
     return null;
@@ -25,7 +24,6 @@ export async function authenticate(req) {
 
   const cookies = parse(cookieHeader);
   const token = cookies.auth_token;
-
   if (!token) {
     return null;
   }
