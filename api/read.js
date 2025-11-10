@@ -5,7 +5,7 @@ import { authenticate } from "./_lib/auth.js";
 import { getTursoClient } from "./_lib/db.js";
 
 export const config = {
-  runtime: 'nodejs',
+  runtime: 'edge',
 };
 
 export default async function handler(req) {

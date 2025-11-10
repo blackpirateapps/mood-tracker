@@ -6,9 +6,9 @@ import { getTursoClient } from "./_lib/db.js";
 import jwt from "jsonwebtoken";
 import { serialize } from "cookie";
 
-// Vercel specific config to ensure this runs as a serverless function
+// Use Edge runtime for Request/Response API
 export const config = {
-  runtime: 'nodejs',
+  runtime: 'edge',
 };
 
 export default async function handler(req) {
