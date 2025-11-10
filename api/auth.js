@@ -8,10 +8,8 @@ import { serialize } from "cookie";
 
 // Vercel specific config to ensure this runs as a serverless function
 export const config = {
-  runtime: 'edge', // or 'nodejs'
+  runtime: 'nodejs', // CORRECTED: Set to Node.js runtime
 };
-
-const getEnv = (key) => process.env[key];
 
 export default async function handler(req) {
   // We only accept POST requests
@@ -22,7 +20,7 @@ export default async function handler(req) {
     });
   }
 
-  const JWT_SECRET = getEnv("JWT_SECRET");
+  const JWT_SECRET = process.env.JWT_SECRET; // Use process.env directly
   if (!JWT_SECRET) {
     console.error("FATAL: JWT_SECRET is not set.");
     return new Response(JSON.stringify({ error: "Server configuration error" }), {
