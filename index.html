@@ -1,935 +1,181 @@
 <!DOCTYPE html>
-<!-- Force dark mode -->
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minimal Mood Journal</title>
-    <!-- Load Tailwind CSS -->
+    <title>Black Mood Tracker - Privacy-First Mood Journal</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Load Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Use Inter font -->
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* All CSS is identical to your original file, so I am omitting it for brevity. */
-        /* Custom styles */
         body {
             font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
         }
-        .emoji-selected {
-            transform: scale(1.1);
-            background-color: #dbeafe;
-            box-shadow: 0 0 0 3px #60a5fa;
+        
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        .activity-selected {
-            box-shadow: 0 0 0 3px #3b82f6;
-            font-weight: 600;
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
         }
-        .message-box {
-            position: fixed; top: 5%; left: 50%; transform: translateX(-50%);
-            padding: 1rem 1.5rem; background-color: #22c55e; color: white;
-            border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            font-weight: 500; opacity: 0; visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease; z-index: 1050;
+        
+        .btn {
+            transition: all 0.3s ease;
         }
-        .message-box.show { opacity: 1; visibility: visible; }
-        .modal-backdrop {
-            position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
-            opacity: 0; visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease; z-index: 1000;
+        
+        .btn:hover {
+            transform: translateY(-2px);
         }
-        .modal-backdrop.show { opacity: 1; visibility: visible; }
-        .modal-content {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white; padding: 1.5rem; border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 90%; max-width: 500px; opacity: 0; visibility: hidden;
-            transform: translate(-50%, -60%);
-            transition: all 0.3s ease; z-index: 1001;
-            max-height: 90vh; overflow-y: auto;
-        }
-        .modal-backdrop.show .modal-content {
-            opacity: 1; visibility: visible; transform: translate(-50%, -50%);
-        }
-        .picker-container {
-            display: flex; flex-wrap: wrap; gap: 0.5rem; max-height: 150px; overflow-y: auto;
-            border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.75rem;
-        }
-        .icon-picker-btn {
-            width: 2.5rem; height: 2.5rem; display: inline-flex;
-            align-items: center; justify-content: center; font-size: 1.25rem;
-            border-radius: 0.5rem; transition: all 0.2s; border: 2px solid transparent;
-        }
-        .icon-picker-btn:hover { background-color: #f3f4f6; }
-        .icon-picker-btn.selected { border-color: #3b82f6; background-color: #dbeafe; }
-        .color-picker-btn {
-            width: 2.25rem; height: 2.25rem; border-radius: 9999px;
-            border: 2px solid transparent; cursor: pointer; transition: all 0.2s;
-        }
-        .color-picker-btn.selected {
-            border-color: #3b82f6; box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
-        }
-        #calendar-grid {
-            display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
-        }
-        .calendar-day-head {
-            text-align: center; font-weight: 600;
-            font-size: 0.875rem; color: #6b7280;
-        }
-        .calendar-day {
-            position: relative; text-align: center; font-size: 0.875rem;
-            padding: 0.5rem 0; border-radius: 0.5rem; height: 48px;
-            display: flex; align-items: center; justify-content: center;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .calendar-day.other-month { color: #d1d5db; }
-        .calendar-day.today {
-            background-color: #eff6ff; font-weight: 700; color: #2563eb;
-        }
-        .calendar-day.has-entry {
-            background-color: #3b82f6; color: white; font-weight: 600;
-            border-radius: 9999px; box-shadow: none;
-        }
-        html.dark body { background-color: #000; }
-        html.dark .card-bg { background-color: #111827; }
-        html.dark .modal-backdrop { background-color: rgba(0, 0, 0, 0.7); }
-        html.dark .modal-content { background-color: #1f2937; }
-        html.dark .emoji-selected { background-color: #1e3a8a; box-shadow: 0 0 0 3px #60a5fa; }
-        html.dark .picker-container { border-color: #4b5563; }
-        html.dark .icon-picker-btn:hover { background-color: #374151; }
-        html.dark .icon-picker-btn.selected { background-color: #1e3a8a; }
-        html.dark .calendar-day-head { color: #9ca3af; }
-        html.dark .calendar-day.other-month { color: #4b5563; }
-        html.dark .calendar-day.today { background-color: #374151; color: #93c5fd; }
-        html.dark .calendar-day.has-entry { background-color: #2563eb; color: white; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-black text-gray-800 dark:text-gray-200 antialiased">
+<body class="bg-black text-gray-200 antialiased">
     
-    <!-- Loading overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[2000]">
-        <h2 class="text-white text-2xl font-semibold">Loading your journal...</h2>
-    </div>
-
-    <!-- Main Container -->
-    <div id="main-content" class="container mx-auto max-w-lg p-4 sm:p-6 md:p-8" style="visibility: hidden;">
-
-        <!-- Entry Card -->
-        <div class="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-2xl shadow-lg card-bg">
+    <!-- Hero Section -->
+    <div class="min-h-screen flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <div class="max-w-4xl w-full space-y-12">
             
             <!-- Header -->
-            <div class="flex justify-between items-center mb-6">
-                <div class="text-left">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">How are you feeling?</h1>
-                    <p id="today-date" class="text-gray-500 dark:text-gray-400 text-lg mt-1"></p>
-                </div>
-                <button id="logout-btn" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
-                    Sign Out
-                </button>
+            <div class="text-center">
+                <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6">
+                    Black Mood Tracker
+                </h1>
+                <p class="text-xl sm:text-2xl text-gray-400 mb-4">
+                    Your private space to track emotions and build mental wellness
+                </p>
+                <p class="text-lg text-gray-500 max-w-2xl mx-auto">
+                    A minimalist, open-source mood journal that respects your privacy. No accounts, no tracking, just you and your feelings.
+                </p>
             </div>
-
-
-            <!-- Mood Rating -->
-            <div class="mb-8">
-                <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">Rate your mood</h2>
-                <div id="emoji-container" class="flex flex-wrap justify-center gap-x-2 sm:gap-x-3 gap-y-3">
-                    <!-- Emojis will be injected here -->
-                </div>
+            
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="login.html" class="btn w-full sm:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 text-center">
+                    Get Started Free
+                </a>
+                <a href="login.html" class="btn w-full sm:w-auto bg-gray-800 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-700 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-50 text-center border border-gray-700">
+                    Sign In
+                </a>
             </div>
-
-            <!-- Activities -->
-            <div class="mb-6">
-                <div class="flex justify-center items-center mb-4 gap-2">
-                    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300">What've you been up to?</h2>
-                    <button id="manage-activities-btn" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Manage</button>
-                </div>
-                <div id="activity-container" class="flex flex-wrap justify-center gap-2">
-                    <!-- Activities will be injected here -->
-                </div>
-            </div>
-
-            <!-- Save Button -->
-            <button id="save-button" class="w-full bg-blue-600 text-white p-3 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 shadow-md hover:shadow-lg dark:focus:ring-blue-400">
-                Save Entry
-            </button>
-        </div>
-
-        <!-- Calendar & Streaks (identical HTML, so omitted for brevity) -->
-        <div class="mt-8">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">Calendar</h2>
-            <div class="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-lg card-bg">
-                <div class="flex justify-between items-center mb-4">
-                    <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <i class="fa-solid fa-chevron-left text-gray-600 dark:text-gray-400"></i>
-                    </button>
-                    <h3 id="month-year-display" class="text-lg font-bold text-gray-800 dark:text-gray-200"></h3>
-                    <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <i class="fa-solid fa-chevron-right text-gray-600 dark:text-gray-400"></i>
-                    </button>
-                </div>
-                <div id="calendar-grid-header" class="grid grid-cols-7 gap-1 mb-1">
-                    <div class="calendar-day-head">S</div>
-                    <div class="calendar-day-head">M</div>
-                    <div class="calendar-day-head">T</div>
-                    <div class="calendar-day-head">W</div>
-                    <div class="calendar-day-head">T</div>
-                    <div class="calendar-day-head">F</div>
-                    <div class="calendar-day-head">S</div>
-                </div>
-                <div id="calendar-grid"></div>
-                <div class="flex justify-around mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="current-streak">0</div>
-                        <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Current Streak</div>
+            
+            <!-- Features Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
+                
+                <!-- Feature 1 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-face-smile text-white text-2xl"></i>
                     </div>
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-gray-700 dark:text-gray-300" id="best-streak">0</div>
-                        <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Best Streak</div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Daily Mood Tracking</h3>
+                    <p class="text-gray-400">
+                        Log your emotions with simple emoji ratings and track patterns over time
+                    </p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-list-check text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Activity Logging</h3>
+                    <p class="text-gray-400">
+                        Track what you've been up to and see how activities affect your mood
+                    </p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-chart-line text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Visual Insights</h3>
+                    <p class="text-gray-400">
+                        Beautiful charts and calendar views to understand your emotional patterns
+                    </p>
+                </div>
+                
+                <!-- Feature 4 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-fire text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Streak Tracking</h3>
+                    <p class="text-gray-400">
+                        Build consistency with streak counters that motivate daily journaling
+                    </p>
+                </div>
+                
+                <!-- Feature 5 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-lock text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Privacy First</h3>
+                    <p class="text-gray-400">
+                        Your data stays on your device. No servers, no tracking, no ads
+                    </p>
+                </div>
+                
+                <!-- Feature 6 -->
+                <div class="feature-card bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-800">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-brands fa-github text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2">Open Source</h3>
+                    <p class="text-gray-400">
+                        Free forever. Transparent code you can trust and contribute to
+                    </p>
+                </div>
+                
+            </div>
+            
+            <!-- Open Source Badge -->
+            <div class="text-center mt-12 space-y-4">
+                <div class="inline-flex items-center gap-2 bg-gray-900 px-6 py-3 rounded-full border border-gray-800">
+                    <i class="fa-brands fa-github text-gray-400"></i>
+                    <span class="text-gray-300 font-medium">100% Open Source & Privacy Friendly</span>
+                    <span class="bg-green-500 w-2 h-2 rounded-full animate-pulse"></span>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <footer class="text-center pt-12 pb-8 border-t border-gray-800 mt-16">
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-gray-500 text-sm">
+                    <div>
+                        Made with <i class="fa-solid fa-heart text-red-500"></i> by 
+                        <a href="https://blackpiratex.com" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 font-medium">
+                            blackpiratex
+                        </a>
+                    </div>
+                    <div class="hidden sm:block text-gray-700">•</div>
+                    <div>
+                        <a href="https://github.com/blackpirateapps/mood-tracker" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-2">
+                            <i class="fa-brands fa-github"></i>
+                            View Source Code
+                        </a>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Mood History Graph (identical HTML) -->
-        <div class="mt-8">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">Mood History</h2>
-            <div class="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-lg card-bg">
-                <canvas id="mood-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- Journal History (identical HTML) -->
-        <div class="mt-8">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">Your Journal</h2>
-            <div id="journal-history" class="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-lg space-y-4 card-bg">
-                <p id="no-entries" class="text-gray-500 dark:text-gray-400 text-center">No entries yet. Your saved entries will appear here.</p>
-            </div>
+            </footer>
+            
         </div>
     </div>
-
-    <!-- Message Box (identical HTML) -->
-    <div id="message-box" class="message-box">
-        Entry Saved!
-    </div>
-
-    <!-- Activity Management Modal (identical HTML, so omitted for brevity) -->
-    <div id="activity-modal" class="modal-backdrop dark:bg-opacity-70">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Manage Activities</h3>
-                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200">
-                    <i class="fa-solid fa-xmark fa-lg"></i>
-                </button>
-            </div>
-            <form id="add-activity-form" class="mb-4 space-y-3">
-                <input type="hidden" id="edit-activity-id">
-                <div>
-                    <label for="new-activity-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Activity Name</label>
-                    <input type="text" id="new-activity-name" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Icon</label>
-                    <div id="icon-picker" class="picker-container"></div>
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Color</label>
-                    <div id="color-picker" class="picker-container"></div>
-                </div>
-                <div class="flex gap-2">
-                    <button type="submit" id="save-activity-btn" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-duration-200">
-                        Add Activity
-                    </button>
-                    <button type="button" id="cancel-edit-btn" class="hidden flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-duration-200">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-            <div class="space-y-2">
-                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">Your Activities</h4>
-                <div id="activities-list-modal" class="space-y-2 max-h-48 overflow-y-auto"></div>
-            </div>
-        </div>
-    </div>
-
-
+    
     <script>
-        // --- THIS IS THE NEW JAVASCRIPT, REPLACING ALL LOCALSTORAGE LOGIC ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- CONSTANTS ---
-            // These are unchanged
-            const EMOJIS = ['😭', '😢', '😔', '😐', '🙂', '😊', '😄', '😁', '🤩', '🥳'];
-            const ICON_LIST = [
-                'fa-book', 'fa-code', 'fa-plane', 'fa-users', 'fa-bed', 'fa-briefcase', 'fa-person-running',
-                'fa-utensils', 'fa-gamepad', 'fa-music', 'fa-film', 'fa-heart', 'fa-brain', 'fa-pills',
-                'fa-comments', 'fa-leaf', 'fa-laptop', 'fa-bus', 'fa-shopping-cart', 'fa-tree',
-                'fa-dumbbell', 'fa-paint-brush', 'fa-book-open', 'fa-camera', 'fa-car', 'fa-bicycle',
-                'fa-glass-cheers', 'fa-briefcase-medical', 'fa-graduation-cap', 'fa-guitar', 'fa-headphones',
-                'fa-lightbulb', 'fa-seedling', 'fa-moon', 'fa-sun', 'fa-poo', 'fa-meditation', 'fa-smile'
-            ];
-            const COLOR_LIST = [
-                '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-                '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-                '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#64748b'
-            ];
-            const DEFAULT_COLOR = '#64748b';
-
-            // --- DOM ELEMENTS ---
-            // All DOM element queries are the same as before
-            const dateEl = document.getElementById('today-date');
-            const emojiContainer = document.getElementById('emoji-container');
-            const activityContainer = document.getElementById('activity-container');
-            const saveButton = document.getElementById('save-button');
-            const journalHistory = document.getElementById('journal-history');
-            const noEntriesEl = document.getElementById('no-entries');
-            const messageBox = document.getElementById('message-box');
-            const manageActivitiesBtn = document.getElementById('manage-activities-btn');
-            const activityModal = document.getElementById('activity-modal');
-            const closeModalBtn = document.getElementById('close-modal-btn');
-            const addActivityForm = document.getElementById('add-activity-form');
-            const editActivityIdInput = document.getElementById('edit-activity-id');
-            const newActivityNameInput = document.getElementById('new-activity-name');
-            const iconPicker = document.getElementById('icon-picker');
-            const colorPicker = document.getElementById('color-picker');
-            const saveActivityBtn = document.getElementById('save-activity-btn');
-            const cancelEditBtn = document.getElementById('cancel-edit-btn');
-            const activitiesListModal = document.getElementById('activities-list-modal');
-            const monthYearDisplay = document.getElementById('month-year-display');
-            const prevMonthBtn = document.getElementById('prev-month-btn');
-            const nextMonthBtn = document.getElementById('next-month-btn');
-            const calendarGrid = document.getElementById('calendar-grid');
-            const currentStreakEl = document.getElementById('current-streak');
-            const bestStreakEl = document.getElementById('best-streak');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const mainContent = document.getElementById('main-content');
-            const logoutBtn = document.getElementById('logout-btn');
-
-            // --- APP STATE ---
-            let selectedEmoji = null;
-            let selectedActivities = [];
-            let activities = []; // This will be populated from the API
-            let selectedIcon = '';
-            let selectedColor = '';
-            let moodChart = null;
-            let currentCalendarDate = new Date();
-            let journalEntries = []; // This will be populated from the API
-            let entriesMap = new Map();
-            const today = new Date();
-            const todayString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            const todayDateString = today.toISOString().split('T')[0];
-
-            // --- NEW API FUNCTIONS ---
-
-            /**
-             * Handles redirecting to login if an API call is unauthorized.
-             */
-            function handleUnauthorized() {
-                console.error("Unauthorized. Redirecting to login.");
-                window.location.href = '/login.html';
-            }
-
-            /**
-             * Fetches all user data from the backend.
-             */
-            async function loadData() {
-                try {
-                    const response = await fetch('/api/read');
-                    
-                    if (response.status === 401) {
-                        handleUnauthorized();
-                        return;
-                    }
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load data');
-                    }
-
-                    const data = await response.json();
-                    activities = data.activities || [];
-                    journalEntries = data.journalEntries || [];
-                    
-                    // All data loaded, now render the app
-                    fullRender();
-                    
-                    // Hide loading, show content
-                    loadingOverlay.style.display = 'none';
-                    mainContent.style.visibility = 'visible';
-
-                } catch (error) {
-                    console.error('Error loading data:', error);
-                    // Show a permanent error
-                    loadingOverlay.innerHTML = `<h2 class="text-red-400 text-2xl font-semibold">Could not load journal. Please try again.</h2>`;
-                }
-            }
-            
-            /**
-             * NEW: Calls all render functions after data is loaded.
-             */
-            function fullRender() {
-                updateEntriesMap();
-                loadTodayEntry();
-                renderEmojis();
-                renderActivities();
-                renderJournalHistory();
-                renderMoodChart();
-                renderCalendar();
-                calculateStreaks();
-            }
-
-            /**
-             * NEW: Handles logout
-             */
-            async function handleLogout() {
-                try {
-                    await fetch('/api/auth', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'logout' })
-                    });
-                } catch (e) {
-                    console.error("Error logging out", e);
-                } finally {
-                    window.location.href = '/login.html';
-                }
-            }
-
-            // --- ALL HELPER FUNCTIONS (UNCHANGED, but now use in-memory state) ---
-            // All your existing functions (showMessage, updateEntriesMap, renderEmojis,
-            // renderActivities, renderJournalHistory, renderMoodChart, getMoodValue,
-            // loadTodayEntry, renderIconPicker, renderColorPicker, 
-            // renderActivitiesListModal, renderCalendar, areDatesConsecutive,
-            // calculateStreaks, openModal, closeModal, clearAddActivityForm)
-            // are IDENTICAL, so I am not repeating them. They work perfectly
-            // with the `activities` and `journalEntries` arrays in memory.
-            
-            // Re-adding the functions that were removed from the original file
-            // as they are needed here and are unchanged.
-
-            function updateChartTheme() {
-                const gridColor = 'rgba(255, 255, 255, 0.1)';
-                const tickColor = '#9ca3af';
-                Chart.defaults.color = tickColor;
-                Chart.defaults.borderColor = gridColor;
-                if (moodChart) { renderMoodChart(); }
-            }
-
-            function showMessage(text, type = 'success') {
-                messageBox.textContent = text;
-                messageBox.style.backgroundColor = type === 'error' ? '#ef4444' : '#22c55e';
-                messageBox.classList.add('show');
-                setTimeout(() => { messageBox.classList.remove('show'); }, 2000);
-            }
-
-            function updateEntriesMap() {
-                entriesMap.clear();
-                if (journalEntries.length === 0) return;
-                const dates = [...new Set(journalEntries.map(e => e.dateKey.split('T')[0]))];
-                dates.forEach(dateString => { entriesMap.set(dateString, true); });
-            }
-
-            function renderEmojis() {
-                emojiContainer.innerHTML = '';
-                EMOJIS.forEach(emoji => {
-                    const button = document.createElement('button');
-                    button.textContent = emoji;
-                    button.setAttribute('data-emoji', emoji);
-                    button.className = `p-2 text-3xl sm:text-4xl rounded-full transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300`;
-                    if (emoji === selectedEmoji) { button.classList.add('emoji-selected'); }
-                    emojiContainer.appendChild(button);
-                });
-            }
-
-            function renderActivities() {
-                activityContainer.innerHTML = '';
-                activities.forEach(activity => {
-                    const button = document.createElement('button');
-                    button.setAttribute('data-activity-id', activity.id);
-                    button.style.backgroundColor = activity.color || DEFAULT_COLOR;
-                    button.style.color = 'white';
-                    button.className = `px-3 py-1.5 text-sm sm:text-base font-medium rounded-full transition-all duration-200 hover:opacity-80 focus:outline-none flex items-center gap-1.5`;
-                    button.innerHTML = `<i class="fa-solid ${activity.icon} text-xs opacity-90"></i> <span>${activity.name}</span>`;
-                    if (selectedActivities.includes(activity.id)) { button.classList.add('activity-selected'); }
-                    activityContainer.appendChild(button);
-                });
-            }
-
-            function renderJournalHistory() {
-                while (journalHistory.firstChild && journalHistory.firstChild !== noEntriesEl) {
-                    journalHistory.removeChild(journalHistory.firstChild);
-                }
-                if (journalEntries.length === 0) {
-                    noEntriesEl.style.display = 'block';
-                    return;
-                }
-                noEntriesEl.style.display = 'none';
-                
-                // Ensure sorting, as API data is already sorted, but client-side updates might not be
-                journalEntries.sort((a, b) => new Date(b.dateKey) - new Date(a.dateKey));
-                
-                journalEntries.forEach(entry => {
-                    const entryDiv = document.createElement('div');
-                    entryDiv.className = 'border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0 last:pb-0';
-                    const activitiesHtml = entry.activities.length > 0 
-                        ? entry.activities.map(actId => {
-                            const activity = activities.find(a => a.id === actId);
-                            if (activity) {
-                                return `<span style="background-color: ${activity.color || DEFAULT_COLOR}; color: white;" class="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5">
-                                    <i class="fa-solid ${activity.icon} opacity-90"></i> ${activity.name}</span>`;
-                            }
-                            return '';
-                          }).join(' ')
-                        : '<span class="text-gray-400 italic text-sm">No activities logged.</span>';
-
-                    entryDiv.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <span class="font-semibold text-gray-700 dark:text-gray-300">${entry.date}</span>
-                            <span class="text-3xl">${entry.mood}</span>
-                        </div>
-                        <div class="mt-2 flex flex-wrap gap-1">${activitiesHtml}</div>`;
-                    journalHistory.insertBefore(entryDiv, noEntriesEl);
-                });
-            }
-
-            function renderMoodChart() {
-                if (journalEntries.length === 0) {
-                    if (moodChart) { moodChart.destroy(); moodChart = null; }
-                    return;
-                }
-                const sortedJournal = [...journalEntries].sort((a, b) => new Date(a.dateKey) - new Date(b.dateKey));
-                const labels = sortedJournal.map(entry => new Date(entry.dateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-                const data = sortedJournal.map(entry => getMoodValue(entry.mood));
-                const ctx = document.getElementById('mood-chart').getContext('2d');
-                if (moodChart) { moodChart.destroy(); }
-                moodChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Mood', data: data, borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true,
-                            tension: 0.3, pointRadius: 5, pointBackgroundColor: '#3b82f6',
-                        }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: true,
-                        scales: {
-                            y: {
-                                beginAtZero: false, min: 1, max: 10,
-                                ticks: {
-                                    stepSize: 1,
-                                    callback: function(value) { return EMOJIS[value - 1]; },
-                                    font: { size: 14 }
-                                }
-                            },
-                            x: { ticks: { maxRotation: 45, minRotation: 0 } }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const value = context.parsed.y;
-                                        return value ? ` Mood: ${EMOJIS[value - 1]}` : ' Mood: N/A';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            function getMoodValue(emoji) {
-                const index = EMOJIS.indexOf(emoji);
-                return index === -1 ? 5 : index + 1;
-            }
-
-            function loadTodayEntry() {
-                const todayEntry = journalEntries.find(entry => entry.date === todayString);
-                if (todayEntry) {
-                    selectedEmoji = todayEntry.mood;
-                    selectedActivities = [...todayEntry.activities];
-                    saveButton.textContent = "Update Entry";
-                }
-            }
-
-            function renderIconPicker() {
-                iconPicker.innerHTML = '';
-                ICON_LIST.forEach(iconClass => {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'icon-picker-btn';
-                    button.setAttribute('data-icon', iconClass);
-                    button.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
-                    if (iconClass === selectedIcon) { button.classList.add('selected'); }
-                    iconPicker.appendChild(button);
-                });
-            }
-
-            function renderColorPicker() {
-                colorPicker.innerHTML = '';
-                COLOR_LIST.forEach(colorHex => {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'color-picker-btn';
-                    button.setAttribute('data-color', colorHex);
-                    button.style.backgroundColor = colorHex;
-                    if (colorHex === selectedColor) { button.classList.add('selected'); }
-                    colorPicker.appendChild(button);
-                });
-            }
-
-            function renderActivitiesListModal() {
-                activitiesListModal.innerHTML = '';
-                if (activities.length === 0) {
-                    activitiesListModal.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm italic">No custom activities yet.</p>';
-                    return;
-                }
-                activities.forEach(activity => {
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg';
-                    div.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <span style="background-color: ${activity.color || DEFAULT_COLOR}" class="w-5 h-5 rounded-full flex items-center justify-center">
-                                <i class="fa-solid ${activity.icon} text-white text-xs"></i>
-                            </span>
-                            <span class="font-medium text-gray-800 dark:text-gray-200">${activity.name}</span>
-                        </div>
-                        <div class="space-x-2">
-                            <button class="edit-activity-btn text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" data-id="${activity.id}" title="Edit"><i class="fa-solid fa-pencil"></i></button>
-                            <button class="delete-activity-btn text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" data-id="${activity.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                        </div>`;
-                    activitiesListModal.appendChild(div);
-                });
-            }
-
-            function renderCalendar() {
-                calendarGrid.innerHTML = '';
-                monthYearDisplay.textContent = currentCalendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                const year = currentCalendarDate.getFullYear();
-                const month = currentCalendarDate.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let i = 0; i < firstDay; i++) {
-                    calendarGrid.appendChild(document.createElement('div')).className = 'calendar-day other-month';
-                }
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dayEl = document.createElement('div');
-                    dayEl.className = 'calendar-day';
-                    dayEl.textContent = day;
-                    const date = new Date(year, month, day);
-                    date.setHours(0, 0, 0, 0);
-                    const dateString = date.toISOString().split('T')[0];
-                    if (entriesMap.has(dateString)) { dayEl.classList.add('has-entry'); } 
-                    else if (dateString === todayDateString) { dayEl.classList.add('today'); }
-                    calendarGrid.appendChild(dayEl);
-                }
-            }
-            
-            function areDatesConsecutive(dateStr1, dateStr2) {
-                if (!dateStr1 || !dateStr2) return false;
-                try {
-                    const date1 = new Date(dateStr1 + 'T00:00:00Z');
-                    const date2 = new Date(dateStr2 + 'T00:00:00Z');
-                    date1.setUTCDate(date1.getUTCDate() + 1);
-                    return date1.toISOString().split('T')[0] === dateStr2;
-                } catch(e) { console.error("Error in areDatesConsecutive", e); return false; }
-            }
-
-            function calculateStreaks() {
-                if (journalEntries.length === 0) {
-                    currentStreakEl.textContent = '0';
-                    bestStreakEl.textContent = '0';
-                    return;
-                }
-                const dates = [...new Set(journalEntries.map(e => e.dateKey.split('T')[0]))].sort();
-                let currentStreak = 0;
-                let bestStreak = 0;
-                let lastDate = null;
-                for (const dateString of dates) {
-                    if (lastDate) {
-                        if (areDatesConsecutive(lastDate, dateString)) {
-                            currentStreak++;
-                        } else {
-                            bestStreak = Math.max(bestStreak, currentStreak);
-                            currentStreak = 1;
-                        }
-                    } else { currentStreak = 1; }
-                    bestStreak = Math.max(bestStreak, currentStreak);
-                    lastDate = dateString;
-                }
-                const lastEntryDate = dates[dates.length - 1];
-                const yesterday = new Date(today.getTime());
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayDateString = yesterday.toISOString().split('T')[0];
-                if (lastEntryDate === todayDateString || lastEntryDate === yesterdayDateString) {
-                    currentStreakEl.textContent = currentStreak;
-                } else { currentStreakEl.textContent = '0'; }
-                bestStreakEl.textContent = bestStreak;
-            }
-
-            function openModal() {
-                activityModal.classList.add('show');
-                renderIconPicker();
-                renderColorPicker();
-                renderActivitiesListModal();
-            }
-
-            function closeModal() {
-                activityModal.classList.remove('show');
-                clearAddActivityForm();
-            }
-
-            function clearAddActivityForm() {
-                editActivityIdInput.value = '';
-                newActivityNameInput.value = '';
-                selectedIcon = '';
-                selectedColor = '';
-                saveActivityBtn.textContent = 'Add Activity';
-                cancelEditBtn.classList.add('hidden');
-                renderIconPicker();
-                renderColorPicker();
-            }
-
-            // --- EVENT HANDLERS (MODIFIED) ---
-
-            function handleEmojiClick(e) {
-                const button = e.target.closest('button');
-                if (!button || !button.hasAttribute('data-emoji')) return;
-                selectedEmoji = button.getAttribute('data-emoji');
-                renderEmojis();
-            }
-
-            function handleActivityClick(e) {
-                const button = e.target.closest('button');
-                if (!button || !button.hasAttribute('data-activity-id')) return;
-                const activityId = button.getAttribute('data-activity-id');
-                if (selectedActivities.includes(activityId)) {
-                    selectedActivities = selectedActivities.filter(id => id !== activityId);
-                    button.classList.remove('activity-selected');
-                } else {
-                    selectedActivities.push(activityId);
-                    button.classList.add('activity-selected');
-                }
-            }
-
-            /**
-             * MODIFIED: Handles saving the journal entry to the API.
-             */
-            async function handleSave() {
-                if (!selectedEmoji) {
-                    showMessage("Please select a mood emoji first.", "error");
-                    return;
-                }
-                
-                // Check if we are updating an existing entry for today
-                const todayEntry = journalEntries.find(entry => entry.date === todayString);
-                const entryId = todayEntry ? todayEntry.id : null;
-
-                const newEntryData = {
-                    action: "save_entry",
-                    date: todayString,
-                    dateKey: todayEntry ? todayEntry.dateKey : new Date().toISOString(), // Keep original dateKey if updating
-                    mood: selectedEmoji,
-                    activities: selectedActivities,
-                    existingEntryId: entryId
-                };
-                
-                saveButton.disabled = true;
-                saveButton.textContent = "Saving...";
-                
-                try {
-                    const response = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(newEntryData)
-                    });
-                    
-                    if (response.status === 401) return handleUnauthorized();
-                    if (!response.ok) throw new Error('Failed to save entry');
-
-                    showMessage(entryId ? "Entry Updated!" : "Entry Saved!");
-                    
-                    // Reload all data from server to ensure sync
-                    await loadData();
-                    
-                } catch (error) {
-                    console.error("Error saving entry:", error);
-                    showMessage("Failed to save entry.", "error");
-                } finally {
-                    saveButton.disabled = false;
-                    // loadData() will reset the button text, or we can do it here
-                    saveButton.textContent = "Update Entry";
-                }
-            }
-
-            function handleIconSelect(e) {
-                const button = e.target.closest('.icon-picker-btn');
-                if (!button) return;
-                selectedIcon = button.getAttribute('data-icon');
-                renderIconPicker();
-            }
-            
-            function handleColorSelect(e) {
-                const button = e.target.closest('.color-picker-btn');
-                if (!button) return;
-                selectedColor = button.getAttribute('data-color');
-                renderColorPicker();
-            }
-
-            /**
-             * MODIFIED: Handles add/update activity via API.
-             */
-            async function handleAddOrUpdateActivity(e) {
-                e.preventDefault();
-                const name = newActivityNameInput.value.trim();
-                const editId = editActivityIdInput.value;
-                if (!name || !selectedIcon) {
-                    showMessage("Name and icon are required.", "error");
-                    return;
-                }
-                
-                const action = editId ? "update_activity" : "create_activity";
-                const activityData = {
-                    action: action,
-                    id: editId,
-                    name: name,
-                    icon: selectedIcon,
-                    color: selectedColor || DEFAULT_COLOR
-                };
-
-                saveActivityBtn.disabled = true;
-                
-                try {
-                    const response = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(activityData)
-                    });
-
-                    if (response.status === 401) return handleUnauthorized();
-                    if (!response.ok) throw new Error('Failed to save activity');
-                    
-                    showMessage(editId ? "Activity updated!" : "Activity added!");
-                    
-                    // Reload all data and re-render
-                    await loadData();
-                    clearAddActivityForm();
-                    renderActivitiesListModal(); // Re-render modal list
-
-                } catch (error) {
-                    console.error("Error saving activity:", error);
-                    showMessage("Failed to save activity.", "error");
-                } finally {
-                    saveActivityBtn.disabled = false;
-                }
-            }
-
-            function handleEditActivity(e) {
-                const button = e.target.closest('.edit-activity-btn');
-                if (!button) return;
-                const id = button.getAttribute('data-id');
-                const activity = activities.find(a => a.id === id);
-                if (!activity) return;
-                
-                editActivityIdInput.value = activity.id;
-                newActivityNameInput.value = activity.name;
-                selectedIcon = activity.icon;
-                selectedColor = activity.color || DEFAULT_COLOR;
-                saveActivityBtn.textContent = 'Update Activity';
-                cancelEditBtn.classList.remove('hidden');
-                
-                renderIconPicker();
-                renderColorPicker();
-                newActivityNameInput.focus();
-            }
-
-            /**
-             * MODIFIED: Handles delete activity via API.
-             */
-            async function handleDeleteActivity(e) {
-                const button = e.target.closest('.delete-activity-btn');
-                if (!button) return;
-                const id = button.getAttribute('data-id');
-                
-                // Optimistic UI: remove from local state first
-                const tempActivities = [...activities];
-                activities = activities.filter(a => a.id !== id);
-                renderActivitiesListModal(); // Re-render modal list
-
-                try {
-                    const response = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: "delete_activity", id: id })
-                    });
-                    
-                    if (response.status === 401) return handleUnauthorized();
-                    if (!response.ok) throw new Error('Failed to delete');
-                    
-                    showMessage("Activity deleted.");
-                    // Reload all data for consistency
-                    await loadData();
-                    renderActivitiesListModal();
-
-                } catch (error) {
-                    console.error("Error deleting activity:", error);
-                    showMessage("Failed to delete activity.", "error");
-                    // Rollback
-                    activities = tempActivities;
-                    renderActivitiesListModal();
-                }
-            }
-
-            function handleCalendarNav(direction) {
-                const currentMonth = currentCalendarDate.getMonth();
-                currentCalendarDate.setMonth(currentMonth + direction);
-                renderCalendar();
-            }
-
-            /**
-             * MODIFIED: Initializes the application.
-             */
-            function init() {
-                dateEl.textContent = todayString;
-                updateChartTheme(); // Set dark chart defaults
-
-                // --- NEW ---
-                // Load all data from the API
-                loadData(); 
-                // All rendering is now inside loadData()'s success
-                // --- END NEW ---
-
-                // Attach event listeners (these are unchanged)
-                logoutBtn.addEventListener('click', handleLogout);
-                emojiContainer.addEventListener('click', handleEmojiClick);
-                activityContainer.addEventListener('click', handleActivityClick);
-                saveButton.addEventListener('click', handleSave);
-                
-                manageActivitiesBtn.addEventListener('click', openModal);
-                closeModalBtn.addEventListener('click', closeModal);
-                activityModal.addEventListener('click', closeModal);
-                iconPicker.addEventListener('click', handleIconSelect);
-                colorPicker.addEventListener('click', handleColorSelect);
-                addActivityForm.addEventListener('submit', handleAddOrUpdateActivity);
-                cancelEditBtn.addEventListener('click', clearAddActivityForm);
-                activitiesListModal.addEventListener('click', e => {
-                    handleEditActivity(e);
-                    handleDeleteActivity(e);
-                });
-                
-                prevMonthBtn.addEventListener('click', () => handleCalendarNav(-1));
-                nextMonthBtn.addEventListener('click', () => handleCalendarNav(1));
-            }
-
-            // --- START APP ---
-            init();
-        });
+        // Redirect to dashboard if already logged in
+        const currentUser = localStorage.getItem('currentUser');
+        if (currentUser) {
+            window.location.href = 'dashboard.html';
+        }
     </script>
+    
 </body>
 </html>
