@@ -5,7 +5,7 @@ import { authenticate } from "./_lib/auth.js";
 import { getTursoClient } from "./_lib/db.js";
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs', // Switched from 'edge' to 'nodejs'
 };
 
 export default async function handler(req) {
@@ -117,7 +117,7 @@ export default async function handler(req) {
 
   } catch (error) {
     console.error("Write API Error:", error.message);
-    return new Response(JSON.STRINGIFY({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
