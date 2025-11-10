@@ -45,8 +45,8 @@ export default async function handler(req, res) {
       if (existingEntryId) {
         // Update existing entry
         await db.execute({
-          sql: "UPDATE journal_entries SET mood = ? WHERE id = ? AND user_id = ?",
-          args: [mood, entryId, userId],
+          sql: "UPDATE journal_entries SET mood = ?, date = ? WHERE id = ? AND user_id = ?",
+          args: [mood, date, entryId, userId],
         });
 
         // Delete old activity associations
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         await db.batch(inserts, "write");
       }
 
-      return res.status(200).json({ message: "Entry saved", entryId });
+      return res.status(200).json({ message: "Entry saved" });
     }
 
     // === DELETE JOURNAL ENTRY ===
@@ -93,31 +93,31 @@ export default async function handler(req, res) {
     if (action === "create_activity") {
       const { name, icon, color } = body;
 
-      if (!name || !icon || !color) {
-        return res.status(400).json({ error: "Name, icon, and color required" });
+      if (!name || !icon) {
+        return res.status(400).json({ error: "Name and icon required" });
       }
 
       const activityId = `activity_${Date.now()}`;
 
       await db.execute({
         sql: "INSERT INTO activities (id, user_id, name, icon, color) VALUES (?, ?, ?, ?, ?)",
-        args: [activityId, userId, name, icon, color],
+        args: [activityId, userId, name, icon, color || "#64748b"],
       });
 
-      return res.status(201).json({ message: "Activity created", activityId });
+      return res.status(201).json({ message: "Activity created" });
     }
 
     // === UPDATE ACTIVITY ===
     if (action === "update_activity") {
       const { id, name, icon, color } = body;
 
-      if (!id || !name || !icon || !color) {
-        return res.status(400).json({ error: "ID, name, icon, and color required" });
+      if (!id || !name || !icon) {
+        return res.status(400).json({ error: "ID, name, and icon required" });
       }
 
       await db.execute({
         sql: "UPDATE activities SET name = ?, icon = ?, color = ? WHERE id = ? AND user_id = ?",
-        args: [name, icon, color, id, userId],
+        args: [name, icon, color || "#64748b", id, userId],
       });
 
       return res.status(200).json({ message: "Activity updated" });

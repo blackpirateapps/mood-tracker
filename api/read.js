@@ -52,18 +52,22 @@ export default async function handler(req, res) {
       activityMap.get(row.entry_id).push(row.activity_id);
     }
 
-    // Attach activities to entries
-    const entries = entriesRes.rows.map((entry) => ({
-      ...entry,
+    // Attach activities to entries - MATCH YOUR FRONTEND STRUCTURE
+    const journalEntries = entriesRes.rows.map((entry) => ({
+      id: entry.id,
+      date: entry.date,
+      dateKey: entry.dateKey,
+      mood: entry.mood,
       activities: activityMap.get(entry.id) || [],
     }));
 
+    // Return with property names matching your frontend
     return res.status(200).json({
-      entries,
+      journalEntries: journalEntries,
       activities: activitiesRes.rows,
     });
   } catch (error) {
     console.error("Read error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error", details: error.message });
   }
 }
