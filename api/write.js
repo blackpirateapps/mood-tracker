@@ -1,138 +1,149 @@
-// This is /api/write.js
-// Handles all create/update/delete operations.
+import { getDb } from "./lib/db.js";
+import { verifyToken } from "./lib/auth.js";
 
-import { authenticate } from "./_lib/auth.js";
-import { getTursoClient } from "./_lib/db.js";
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-export const config = {
-  runtime: 'edge',
-};
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-export default async function handler(req) {
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
-
-  // 1. Authenticate user
-  const user = await authenticate(req);
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const { userId } = user;
-  const db = getTursoClient();
 
   try {
-    const { action, ...data } = await req.json();
-
-    switch (action) {
-      // --- SAVE (CREATE/UPDATE) A JOURNAL ENTRY ---
-      case "save_entry": {
-        const { date, dateKey, mood, activities, existingEntryId } = data;
-        let entryId = existingEntryId;
-
-        // We need a transaction to do this safely
-        const tx = await db.transaction("write");
-        try {
-          if (entryId) {
-            // This is an UPDATE
-            await tx.execute({
-              sql: "UPDATE journal_entries SET mood = ? WHERE id = ? AND user_id = ?",
-              args: [mood, entryId, userId],
-            });
-
-            // Clear old activities for this entry
-            await tx.execute({
-              sql: "DELETE FROM entry_activities WHERE entry_id = ? AND user_id = ?",
-              args: [entryId, userId],
-            });
-          } else {
-            // This is a CREATE
-            entryId = crypto.randomUUID();
-            await tx.execute({
-              sql: "INSERT INTO journal_entries (id, user_id, date, dateKey, mood) VALUES (?, ?, ?, ?, ?)",
-              args: [entryId, userId, date, dateKey, mood],
-            });
-          }
-
-          // Add new activities for this entry
-          if (activities && activities.length > 0) {
-            const stmts = activities.map(activityId => ({
-              sql: "INSERT INTO entry_activities (entry_id, activity_id, user_id) VALUES (?, ?, ?)",
-              args: [entryId, activityId, userId]
-            }));
-            await tx.batch(stmts);
-          }
-
-          await tx.commit();
-        } catch (txError) {
-          await tx.rollback();
-          throw txError;
-        }
-
-        return new Response(JSON.stringify({ message: "Entry saved" }), { 
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
-      // --- CREATE A NEW ACTIVITY ---
-      case "create_activity": {
-        const { name, icon, color } = data;
-        const newActivityId = `activity_${Date.now()}`;
-        await db.execute({
-          sql: "INSERT INTO activities (id, user_id, name, icon, color) VALUES (?, ?, ?, ?, ?)",
-          args: [newActivityId, userId, name, icon, color],
-        });
-        return new Response(JSON.stringify({ message: "Activity created" }), { 
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
-      // --- UPDATE AN EXISTING ACTIVITY ---
-      case "update_activity": {
-        const { id, name, icon, color } = data;
-        await db.execute({
-          sql: "UPDATE activities SET name = ?, icon = ?, color = ? WHERE id = ? AND user_id = ?",
-          args: [name, icon, color, id, userId],
-        });
-        return new Response(JSON.stringify({ message: "Activity updated" }), { 
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
-      // --- DELETE AN ACTIVITY ---
-      case "delete_activity": {
-        const { id } = data;
-        await db.execute({
-          sql: "DELETE FROM activities WHERE id = ? AND user_id = ?",
-          args: [id, userId],
-        });
-        return new Response(JSON.stringify({ message: "Activity deleted" }), { 
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
-      default:
-        return new Response(JSON.stringify({ error: "Invalid action" }), { 
-          status: 400,
-          headers: { "Content-Type": "application/json" }
-        });
+    const userId = verifyToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+
+    const { action, data } = req.body;
+    if (!action) {
+      return res.status(400).json({ error: "Action required" });
+    }
+
+    const db = getDb();
+
+    // === SAVE JOURNAL ENTRY ===
+    if (action === "save_entry") {
+      const { id, date, dateKey, mood, activities } = data;
+
+      if (!date || !dateKey || !mood) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const entryId = id || crypto.randomUUID();
+
+      // Check if entry exists
+      const existing = await db.execute({
+        sql: "SELECT id FROM journal_entries WHERE id = ? AND user_id = ?",
+        args: [entryId, userId],
+      });
+
+      if (existing.rows.length > 0) {
+        // Update existing entry
+        await db.execute({
+          sql: "UPDATE journal_entries SET mood = ? WHERE id = ? AND user_id = ?",
+          args: [mood, entryId, userId],
+        });
+
+        // Delete old activity associations
+        await db.execute({
+          sql: "DELETE FROM entry_activities WHERE entry_id = ? AND user_id = ?",
+          args: [entryId, userId],
+        });
+      } else {
+        // Create new entry
+        await db.execute({
+          sql: "INSERT INTO journal_entries (id, user_id, date, dateKey, mood) VALUES (?, ?, ?, ?, ?)",
+          args: [entryId, userId, date, dateKey, mood],
+        });
+      }
+
+      // Insert activity associations
+      if (activities && activities.length > 0) {
+        const inserts = activities.map((activityId) => ({
+          sql: "INSERT INTO entry_activities (entry_id, activity_id, user_id) VALUES (?, ?, ?)",
+          args: [entryId, activityId, userId],
+        }));
+        await db.batch(inserts, "write");
+      }
+
+      return res.status(200).json({ success: true, id: entryId });
+    }
+
+    // === DELETE JOURNAL ENTRY ===
+    if (action === "delete_entry") {
+      const { id } = data;
+      if (!id) {
+        return res.status(400).json({ error: "Entry ID required" });
+      }
+
+      await db.execute({
+        sql: "DELETE FROM journal_entries WHERE id = ? AND user_id = ?",
+        args: [id, userId],
+      });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // === CREATE ACTIVITY ===
+    if (action === "create_activity") {
+      const { name, icon, color } = data;
+
+      if (!name || !icon || !color) {
+        return res.status(400).json({ error: "Name, icon, and color required" });
+      }
+
+      const activityId = `activity_${crypto.randomUUID()}`;
+
+      await db.execute({
+        sql: "INSERT INTO activities (id, user_id, name, icon, color) VALUES (?, ?, ?, ?, ?)",
+        args: [activityId, userId, name, icon, color],
+      });
+
+      return res.status(201).json({ success: true, id: activityId });
+    }
+
+    // === UPDATE ACTIVITY ===
+    if (action === "update_activity") {
+      const { id, name, icon, color } = data;
+
+      if (!id || !name || !icon || !color) {
+        return res.status(400).json({ error: "ID, name, icon, and color required" });
+      }
+
+      await db.execute({
+        sql: "UPDATE activities SET name = ?, icon = ?, color = ? WHERE id = ? AND user_id = ?",
+        args: [name, icon, color, id, userId],
+      });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // === DELETE ACTIVITY ===
+    if (action === "delete_activity") {
+      const { id } = data;
+      if (!id) {
+        return res.status(400).json({ error: "Activity ID required" });
+      }
+
+      await db.execute({
+        sql: "DELETE FROM activities WHERE id = ? AND user_id = ?",
+        args: [id, userId],
+      });
+
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(400).json({ error: "Invalid action" });
   } catch (error) {
-    console.error("Write API Error:", error.message);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("Write error:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 }

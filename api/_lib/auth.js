@@ -1,42 +1,44 @@
-// This file contains our authentication middleware.
-import { parse } from "cookie";
 import jwt from "jsonwebtoken";
 
-const getEnv = (key) => process.env[key];
+export function verifyToken(req) {
+  const cookie = req.headers.cookie;
+  if (!cookie) return null;
 
-/**
- * Middleware to authenticate a user from a cookie.
- * @param {Request} req - The Vercel request object.
- * @returns {Promise<{userId: string} | null>} - Returns user object or null.
- */
-export async function authenticate(req) {
-  const JWT_SECRET = getEnv("JWT_SECRET");
-  if (!JWT_SECRET) {
-    console.error("JWT_SECRET is not set.");
-    return null;
+  const match = cookie.match(/auth_token=([^;]+)/);
+  if (!match) return null;
+
+  const token = match[1];
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("JWT_SECRET not configured");
   }
 
-  // 1. Get cookies from request headers
-  const cookieHeader = req.headers.get("cookie");
-  if (!cookieHeader) {
-    return null;
-  }
-
-  const cookies = parse(cookieHeader);
-  const token = cookies.auth_token;
-  if (!token) {
-    return null;
-  }
-
-  // 2. Verify the token
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    if (typeof payload === "object" && payload.userId) {
-      return { userId: payload.userId };
-    }
-    return null;
-  } catch (error) {
-    console.warn("Invalid JWT:", error.message);
+    const decoded = jwt.verify(token, secret);
+    return decoded.userId;
+  } catch (err) {
     return null;
   }
+}
+
+export function createToken(userId) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET not configured");
+  }
+
+  return jwt.sign({ userId }, secret, { expiresIn: "7d" });
+}
+
+export function setCookie(res, token) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieValue = `auth_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Strict${isProduction ? "; Secure" : ""}`;
+  res.setHeader("Set-Cookie", cookieValue);
+}
+
+export function clearCookie(res) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieValue = `auth_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict${isProduction ? "; Secure" : ""}`;
+  res.setHeader("Set-Cookie", cookieValue);
 }
